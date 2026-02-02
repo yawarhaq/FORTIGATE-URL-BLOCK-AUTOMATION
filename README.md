@@ -19,18 +19,17 @@
    python3 -m venv fgvenv
    
 3. Make sure to activate the virtual environment-
-   source fgenv/bin/activate
+   source fgvenv/bin/activate
    
 4. Install the dependency-
    pip install requests
    
 5. Mention the credentials and the give the following inputs in scripts (one time setup only)-
-   FORTIGATE_IP = "<YOUR-URL>"
-   API_TOKEN = "<YOUR-API-TOKEN>"
-   
-   WEBFILTER_PROFILE = "<YOUR-WEB-PROFILE-NAME>"
-   URL_FILE = "/path/to/file/blocked_url.txt"
+   FORTIGATE_IP = "<YOUR-URL>",
+   API_TOKEN = "<YOUR-API-TOKEN>",
+   WEBFILTER_PROFILE = "<YOUR-WEB-PROFILE-NAME>",
+   URL_FILE = "/path/to/file/blocked_url.txt".
 
-6. Edit the blocked_url.txt file as per the requirements and run the script.
+7. Edit the blocked_url.txt file as per the requirements and run the script.
 
-7. The urls will be blocked.
+8. The urls will be blocked.
