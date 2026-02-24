@@ -1,9 +1,9 @@
 import requests
 import urllib3
+import re
+from urllib.parse import urlparse
 
 urllib3.disable_warnings()
-
-# CONFIG
 
 FORTIGATE_IP = "<YOUR-URL>"
 API_TOKEN = "<YOUR-API-TOKEN>"
@@ -17,7 +17,38 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-# FUNCTIONS
+URL_REGEX = re.compile(r'^[a-zA-Z0-9.*-]+(\.[a-zA-Z]{2,})+$')
+
+
+def normalize_url(raw_url):
+    """
+    Normalize different URL formats into FortiGate-accepted format
+    """
+    url = raw_url.strip().replace(" ", "")
+
+    # If scheme exists, extract hostname
+    if url.startswith(("http://", "https://")):
+        parsed = urlparse(url)
+        url = parsed.hostname or ""
+
+    # Remove trailing slash
+    url = url.rstrip("/")
+
+    # Remove leading www.
+    if url.startswith("www."):
+        url = url[4:]
+
+    return url
+
+
+def is_valid_url(url):
+    """
+    Validate final URL format
+    """
+    return bool(URL_REGEX.match(url))
+
+
+# API FUNCTIONS
 
 def get_webfilter_profile():
     api = f"{FORTIGATE_IP}/api/v2/cmdb/webfilter/profile/{WEBFILTER_PROFILE}?vdom={VDOM}"
@@ -36,9 +67,7 @@ def get_urlfilter(urlfilter_id):
 
 
 def update_urlfilter(urlfilter_id, entries):
-    payload = {
-        "entries": entries
-    }
+    payload = {"entries": entries}
 
     api = f"{FORTIGATE_IP}/api/v2/cmdb/webfilter/urlfilter/{urlfilter_id}?vdom={VDOM}"
     r = requests.put(api, headers=HEADERS, json=payload, verify=False)
@@ -49,13 +78,12 @@ def update_urlfilter(urlfilter_id, entries):
     if r.status_code == 200 and '"revision_changed":true' in r.text:
         print("\n URL Filter updated successfully")
     else:
-        print("\n No revision change")
+        print("\n No revision change (check validation errors)")
 
 
 # MAIN
-
 if __name__ == "__main__":
-    print("Adding blocked URLs via correct urlfilter-table\n")
+    print("Adding blocked URLs with validation & normalization\n")
 
     profile = get_webfilter_profile()
     urlfilter_id = profile.get("web", {}).get("urlfilter-table")
@@ -75,24 +103,34 @@ if __name__ == "__main__":
 
     changed = False
 
-    for url in urls:
-        if url in existing_urls:
-            print(f"Already exists: {url}")
+    for raw_url in urls:
+        normalized_url = normalize_url(raw_url)
+
+        if not normalized_url:
+            print(f"Invalid / empty URL skipped: {raw_url}")
+            continue
+
+        if not is_valid_url(normalized_url):
+            print(f"Unsupported URL format skipped: {raw_url}")
+            continue
+
+        if normalized_url in existing_urls:
+            print(f"Already exists: {normalized_url}")
             continue
 
         entries.append({
             "id": next_id,
-            "url": url,
+            "url": normalized_url,
             "type": "simple",
             "action": "block",
             "status": "enable"
         })
 
-        print(f"Added: {url}")
+        print(f"Added: {normalized_url}")
         next_id += 1
         changed = True
 
     if changed:
         update_urlfilter(urlfilter_id, entries)
     else:
-        print("\n No new URLs to add")
+        print("\n No new valid URLs to add")
